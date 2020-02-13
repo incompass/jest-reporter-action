@@ -33,30 +33,33 @@ const main = async () => {
   const prNumber = context.issue.number;
   const githubClient = new GitHub(githubToken);
 
-  const runningCommentBody = `## Code Coverage Summary`;
-
-  const issueResponse = await githubClient.issues.listComments({
-    issue_number: prNumber,
-    repo        : repoName,
-    owner       : repoOwner
-  });
-
-  const existingComment = issueResponse.data.find(function (comment) {
-    return comment.user.type === 'Bot' && comment.body.indexOf('<p>Total Coverage: <code>') === 0;
-  });
-
-  let commentId = existingComment && existingComment.id;
-
-  const response = await updateOrCreateComment(githubClient, commentId, runningCommentBody);
-
-  commentId = response && response.data && response.data.id;
-
   const codeCoverage = execSync(testCommand).toString();
-  const commentBody = `## Code Coverage Summary
+  core.setOutput('coverage', codeCoverage)
+
+  // only comment if we have a prNumber
+  if (prNumber != null) {
+    const runningCommentBody = `## Code Coverage Summary`;
+    const issueResponse = await githubClient.issues.listComments({
+      issue_number: prNumber,
+      repo        : repoName,
+      owner       : repoOwner
+    });
+
+    const existingComment = issueResponse.data.find(function (comment) {
+      return comment.user.type === 'Bot' && comment.body.indexOf('<p>Total Coverage: <code>') === 0;
+    });
+
+    let commentId = existingComment && existingComment.id;
+
+    const response = await updateOrCreateComment(githubClient, commentId, runningCommentBody);
+
+    commentId = response && response.data && response.data.id;
+    const commentBody = `## Code Coverage Summary
 \`\`\`${codeCoverage}\`\`\`
 `;
 
-  await updateOrCreateComment(githubClient, commentId, commentBody);
+    await updateOrCreateComment(githubClient, commentId, commentBody);
+  }
 };
 
 main().catch(err => core.setFailed(err.message));
